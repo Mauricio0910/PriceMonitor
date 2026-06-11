@@ -1,3 +1,4 @@
+// Força novo deploy Cloudflare Pages
 export async function onRequest(context) {
   const { request } = context;
 

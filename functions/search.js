@@ -22,13 +22,8 @@ export async function onRequest(context) {
 
     if (!query.trim()) {
       return Response.json(
-        {
-          error: "Informe o parâmetro q com o nome do produto."
-        },
-        {
-          status: 400,
-          headers: corsHeaders
-        }
+        { error: "Informe o parâmetro q com o nome do produto." },
+        { status: 400, headers: corsHeaders }
       );
     }
 
@@ -38,22 +33,40 @@ export async function onRequest(context) {
     async function searchMercadoLivre() {
       const endpoint =
         "https://api.mercadolibre.com/sites/MLB/search?q=" +
-        encodeURIComponent(query);
+        encodeURIComponent(query) +
+        "&limit=" +
+        encodeURIComponent(String(limit));
 
       const response = await fetch(endpoint, {
+        method: "GET",
         headers: {
-          Accept: "application/json"
+          "Accept": "application/json",
+          "Accept-Language": "pt-BR,pt;q=0.9,en;q=0.8"
         }
       });
 
+      const responseText = await response.text();
+
       if (!response.ok) {
-        throw new Error("Erro ao consultar Mercado Livre");
+        throw new Error(
+          "Mercado Livre retornou HTTP " +
+            response.status +
+            " - " +
+            responseText.slice(0, 500)
+        );
       }
 
-      const data = await response.json();
+      let data;
+      try {
+        data = JSON.parse(responseText);
+      } catch (e) {
+        throw new Error(
+          "Mercado Livre retornou resposta inválida: " +
+            responseText.slice(0, 300)
+        );
+      }
 
       return (data.results || [])
-        .slice(0, limit)
         .map((item) => ({
           marketplace: "Mercado Livre",
           title: item.title || "",
@@ -73,15 +86,15 @@ export async function onRequest(context) {
     }
 
     if (marketplace === "todos" || marketplace === "amazon") {
-      warnings.push("Amazon: integração pendente de API oficial.");
+      warnings.push("Amazon: integração pendente de API oficial/credenciais.");
     }
 
     if (marketplace === "todos" || marketplace === "shopee") {
-      warnings.push("Shopee: integração pendente de API oficial.");
+      warnings.push("Shopee: integração pendente de API oficial/credenciais.");
     }
 
     if (marketplace === "todos" || marketplace === "shein") {
-      warnings.push("SHEIN: integração pendente de API oficial.");
+      warnings.push("SHEIN: integração pendente de API oficial/credenciais.");
     }
 
     const prices = results
@@ -94,7 +107,9 @@ export async function onRequest(context) {
             min: Math.min(...prices),
             max: Math.max(...prices),
             avg: Number(
-              (prices.reduce((sum, price) => sum + price, 0) / prices.length).toFixed(2)
+              (
+                prices.reduce((sum, price) => sum + price, 0) / prices.length
+              ).toFixed(2)
             )
           }
         : null;
@@ -108,20 +123,14 @@ export async function onRequest(context) {
         warnings,
         priceAnalysis
       },
-      {
-        status: 200,
-        headers: corsHeaders
-      }
+      { status: 200, headers: corsHeaders }
     );
   } catch (error) {
     return Response.json(
       {
         error: error.message || "Erro inesperado ao consultar preços."
       },
-      {
-        status: 500,
-        headers: corsHeaders
-      }
+      { status: 500, headers: corsHeaders }
     );
   }
 }

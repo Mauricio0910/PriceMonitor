@@ -508,6 +508,7 @@
             <div class="col-4">
               <label>Marketplace / e-commerce</label>
               <select id="marketplace">
+                <option value="todos">Todos os marketplaces</option>
                 <option value="mercado_livre">Mercado Livre</option>
                 <option value="amazon">Amazon</option>
                 <option value="shopee">Shopee</option>
@@ -521,8 +522,19 @@
             </div>
           </div>
 
+          <div class="grid" style="margin-top:12px">
+            <div class="col-12">
+              <label>Servidor de consulta de preços/API proxy (opcional)</label>
+              <input id="proxyUrl" placeholder="Ex.: https://seu-worker.workers.dev/search" />
+              <small class="muted">
+                Necessário para Amazon, Shopee e SHEIN. Sem servidor, o sistema consulta somente fontes públicas compatíveis, como Mercado Livre.
+              </small>
+            </div>
+          </div>
+
           <div class="btn-row">
             <button id="btnSearchPrices">Consultar online</button>
+            <button id="btnSaveProxy" class="secondary">Salvar servidor</button>
           </div>
 
           <div id="priceStatus"></div>
@@ -950,50 +962,130 @@
     };
   }
 
+
+  function normalizeProxyUrl(value) {
+    return String(value || '').trim().replace(/\/+$/, '');
+  }
+
+  function getProxyUrl() {
+    return normalizeProxyUrl(localStorage.getItem('PRICE_PROXY_URL') || $('proxyUrl')?.value || '');
+  }
+
+  function marketplaceList(value) {
+    if (value === 'todos') return ['mercado_livre', 'amazon', 'shopee', 'shein'];
+    return [value];
+  }
+
+  async function saveProxyUrl() {
+    const value = normalizeProxyUrl($('proxyUrl').value);
+    localStorage.setItem('PRICE_PROXY_URL', value);
+    status($('priceStatus'), value ? 'Servidor de consulta salvo neste navegador.' : 'Servidor removido.', 'ok');
+  }
+
+  async function fetchMercadoLivreDirect(qText) {
+    const url = new URL('https://api.mercadolibre.com/sites/MLB/search');
+    url.searchParams.set('q', qText);
+    url.searchParams.set('limit', '10');
+    url.searchParams.set('sort', 'price_asc');
+
+    const response = await fetch(url.toString(), { headers: { Accept: 'application/json' } });
+    if (!response.ok) throw new Error(`Mercado Livre retornou erro HTTP ${response.status}.`);
+
+    const data = await response.json();
+    return (data.results || []).map(item => ({
+      marketplace: 'mercado_livre',
+      title: item.title || '',
+      seller: item.seller?.nickname || '',
+      price: Number(item.price || 0),
+      shipping: item.shipping?.free_shipping ? 0 : null,
+      currency: item.currency_id || 'BRL',
+      url: item.permalink || '',
+      score: 0
+    }));
+  }
+
+  async function fetchFromProxy(proxyUrl, marketplace, qText) {
+    const url = new URL(proxyUrl);
+    url.searchParams.set('marketplace', marketplace);
+    url.searchParams.set('q', qText);
+    url.searchParams.set('limit', '10');
+
+    const response = await fetch(url.toString(), { headers: { Accept: 'application/json' } });
+    if (!response.ok) {
+      const text = await response.text().catch(() => '');
+      throw new Error(`Proxy/API retornou HTTP ${response.status}${text ? ': ' + text.slice(0, 160) : ''}`);
+    }
+
+    const data = await response.json();
+    return (data.results || []).map(item => ({
+      marketplace: item.marketplace || marketplace,
+      title: item.title || '',
+      seller: item.seller || '',
+      price: Number(item.price || 0),
+      shipping: item.shipping ?? null,
+      currency: item.currency || 'BRL',
+      url: item.url || '',
+      score: Number(item.score || 0)
+    }));
+  }
+
   async function searchPrices() {
     try {
       if (!selectedProduct) throw new Error('Selecione um produto na aba Análise.');
-      const marketplace = $('marketplace').value;
+      const selectedMarketplace = $('marketplace').value;
       const qText = $('priceQuery').value.trim();
 
       if (!qText) throw new Error('Informe um termo de busca.');
 
-      status($('priceStatus'), 'Consultando preços...');
+      const proxyUrl = getProxyUrl();
+      const requested = marketplaceList(selectedMarketplace);
+      const collected = [];
+      const errors = [];
 
-      if (marketplace !== 'mercado_livre') {
-        status($('priceStatus'), 'Para Amazon, Shopee e SHEIN, use o cadastro manual de sugestão ou integre APIs oficiais em uma etapa futura.', 'error');
-        return;
+      status($('priceStatus'), `Consultando ${requested.length} fonte(s)...`);
+
+      for (const marketplace of requested) {
+        try {
+          let results = [];
+
+          if (proxyUrl) {
+            results = await fetchFromProxy(proxyUrl, marketplace, qText);
+          } else if (marketplace === 'mercado_livre') {
+            results = await fetchMercadoLivreDirect(qText);
+          } else {
+            errors.push(`${labelMarketplace(marketplace)} exige servidor/API proxy com credenciais.`);
+            continue;
+          }
+
+          for (const item of results) {
+            await addDoc(collection(db, 'price_suggestions'), {
+              productId: selectedProduct.id,
+              marketplace: item.marketplace || marketplace,
+              query: qText,
+              title: item.title || '',
+              seller: item.seller || '',
+              price: Number(item.price || 0),
+              shipping: item.shipping ?? null,
+              currency: item.currency || 'BRL',
+              url: item.url || '',
+              score: Number(item.score || 0),
+              collectedAt: serverTimestamp(),
+              createdBy: currentUser.uid
+            });
+          }
+
+          collected.push(`${labelMarketplace(marketplace)}: ${results.length}`);
+        } catch (err) {
+          errors.push(`${labelMarketplace(marketplace)}: ${err.message}`);
+        }
       }
 
-      const url = new URL('https://api.mercadolibre.com/sites/MLB/search');
-      url.searchParams.set('q', qText);
-      url.searchParams.set('limit', '10');
-      url.searchParams.set('sort', 'price_asc');
+      const msg = [
+        collected.length ? `Sugestões salvas — ${collected.join(' | ')}.` : 'Nenhuma sugestão online foi salva.',
+        errors.length ? `<br><b>Atenção:</b> ${errors.join(' | ')}` : ''
+      ].join('');
 
-      const response = await fetch(url.toString(), { headers: { Accept: 'application/json' } });
-      if (!response.ok) throw new Error(`Mercado Livre retornou erro HTTP ${response.status}.`);
-
-      const data = await response.json();
-      const results = data.results || [];
-
-      for (const item of results) {
-        await addDoc(collection(db, 'price_suggestions'), {
-          productId: selectedProduct.id,
-          marketplace,
-          query: qText,
-          title: item.title || '',
-          seller: item.seller?.nickname || '',
-          price: Number(item.price || 0),
-          shipping: item.shipping?.free_shipping ? 0 : null,
-          currency: item.currency_id || 'BRL',
-          url: item.permalink || '',
-          score: 0,
-          collectedAt: serverTimestamp(),
-          createdBy: currentUser.uid
-        });
-      }
-
-      status($('priceStatus'), `${results.length} sugestão(ões) salvas a partir do Mercado Livre.`, 'ok');
+      status($('priceStatus'), msg, errors.length && !collected.length ? 'error' : 'ok');
       await loadSuggestions(selectedProduct.id);
     } catch (error) {
       status($('priceStatus'), error.message, 'error');
@@ -1262,7 +1354,9 @@
   $('btnClearProduct').addEventListener('click', clearProductForm);
   $('btnImportExcel').addEventListener('click', importExcel);
 
+  $('proxyUrl').value = localStorage.getItem('PRICE_PROXY_URL') || '';
   $('btnSearchPrices').addEventListener('click', searchPrices);
+  $('btnSaveProxy').addEventListener('click', saveProxyUrl);
   $('btnAddManualSuggestion').addEventListener('click', addManualSuggestion);
 
   $('btnExportExcel').addEventListener('click', exportExcel);

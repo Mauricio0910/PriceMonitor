@@ -35,3 +35,10 @@ No Firebase Console:
 ## Observação
 
 A chave Firebase Web SDK é pública por natureza. A proteção do sistema fica nas regras do Firestore e no login do Firebase Authentication.
+
+
+## Atualização
+
+Esta versão inclui a opção `Todos os marketplaces` e campo opcional para informar um servidor/API proxy de preços.
+
+Para Amazon, Shopee e SHEIN, veja `README_BACKEND_MARKETPLACES.md` e `cloudflare-worker-marketplaces.js`.

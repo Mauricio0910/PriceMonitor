@@ -1,4 +1,3 @@
-// Força novo deploy Cloudflare Pages
 export async function onRequest(context) {
   const { request } = context;
 
@@ -19,6 +18,7 @@ export async function onRequest(context) {
     const url = new URL(request.url);
     const query = url.searchParams.get("q") || "";
     const marketplace = url.searchParams.get("marketplace") || "todos";
+    const limit = Number(url.searchParams.get("limit") || 10);
 
     if (!query.trim()) {
       return Response.json(
@@ -33,6 +33,7 @@ export async function onRequest(context) {
     }
 
     const results = [];
+    const warnings = [];
 
     async function searchMercadoLivre() {
       const endpoint =
@@ -51,16 +52,19 @@ export async function onRequest(context) {
 
       const data = await response.json();
 
-      return (data.results || []).slice(0, 10).map((item) => ({
-        marketplace: "Mercado Livre",
-        title: item.title || "",
-        price: Number(item.price || 0),
-        currency: item.currency_id || "BRL",
-        url: item.permalink || "",
-        seller: item.seller?.nickname || "",
-        thumbnail: item.thumbnail || "",
-        source: "api_publica_mercado_livre"
-      }));
+      return (data.results || [])
+        .slice(0, limit)
+        .map((item) => ({
+          marketplace: "Mercado Livre",
+          title: item.title || "",
+          price: Number(item.price || 0),
+          currency: item.currency_id || "BRL",
+          url: item.permalink || "",
+          seller: item.seller?.nickname || "",
+          thumbnail: item.thumbnail || "",
+          source: "api_publica_mercado_livre"
+        }))
+        .filter((item) => item.price > 0);
     }
 
     if (marketplace === "todos" || marketplace === "mercado_livre") {
@@ -69,50 +73,40 @@ export async function onRequest(context) {
     }
 
     if (marketplace === "todos" || marketplace === "amazon") {
-      results.push({
-        marketplace: "Amazon",
-        title: "Integração pendente: exige API oficial/credenciais",
-        price: 0,
-        currency: "BRL",
-        url: "",
-        seller: "",
-        thumbnail: "",
-        source: "pendente_api_oficial"
-      });
+      warnings.push("Amazon: integração pendente de API oficial.");
     }
 
     if (marketplace === "todos" || marketplace === "shopee") {
-      results.push({
-        marketplace: "Shopee",
-        title: "Integração pendente: exige API oficial/credenciais",
-        price: 0,
-        currency: "BRL",
-        url: "",
-        seller: "",
-        thumbnail: "",
-        source: "pendente_api_oficial"
-      });
+      warnings.push("Shopee: integração pendente de API oficial.");
     }
 
     if (marketplace === "todos" || marketplace === "shein") {
-      results.push({
-        marketplace: "SHEIN",
-        title: "Integração pendente: exige API oficial/credenciais",
-        price: 0,
-        currency: "BRL",
-        url: "",
-        seller: "",
-        thumbnail: "",
-        source: "pendente_api_oficial"
-      });
+      warnings.push("SHEIN: integração pendente de API oficial.");
     }
+
+    const prices = results
+      .map((item) => item.price)
+      .filter((price) => Number.isFinite(price) && price > 0);
+
+    const priceAnalysis =
+      prices.length > 0
+        ? {
+            min: Math.min(...prices),
+            max: Math.max(...prices),
+            avg: Number(
+              (prices.reduce((sum, price) => sum + price, 0) / prices.length).toFixed(2)
+            )
+          }
+        : null;
 
     return Response.json(
       {
         query,
         marketplace,
         count: results.length,
-        results
+        results,
+        warnings,
+        priceAnalysis
       },
       {
         status: 200,

@@ -1,0 +1,1286 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>PriceMonitor</title>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
+  <style>
+    :root {
+      --bg: #f5f7fb;
+      --panel: #ffffff;
+      --ink: #1f2937;
+      --muted: #6b7280;
+      --line: #dbe1ea;
+      --primary: #2563eb;
+      --primary-dark: #1d4ed8;
+      --danger: #dc2626;
+      --ok: #16a34a;
+      --warn: #b45309;
+      --shadow: 0 12px 30px rgba(15, 23, 42, 0.08);
+      --radius: 16px;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: Arial, Helvetica, sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+    }
+
+    header {
+      background: linear-gradient(135deg, #1d4ed8, #0f172a);
+      color: #fff;
+      padding: 22px 24px;
+      box-shadow: var(--shadow);
+    }
+
+    header .wrap {
+      max-width: 1280px;
+      margin: auto;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 24px;
+    }
+
+    h2 {
+      margin: 0 0 16px 0;
+      font-size: 20px;
+    }
+
+    h3 {
+      margin: 0 0 12px 0;
+      font-size: 16px;
+    }
+
+    .sub {
+      color: rgba(255,255,255,0.8);
+      margin-top: 6px;
+      font-size: 14px;
+    }
+
+    main {
+      max-width: 1280px;
+      margin: 24px auto;
+      padding: 0 16px 40px;
+    }
+
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 18px;
+      box-shadow: var(--shadow);
+      margin-bottom: 18px;
+    }
+
+    .auth-card {
+      max-width: 460px;
+      margin: 52px auto;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(12, 1fr);
+      gap: 12px;
+    }
+
+    .col-2 { grid-column: span 2; }
+    .col-3 { grid-column: span 3; }
+    .col-4 { grid-column: span 4; }
+    .col-6 { grid-column: span 6; }
+    .col-8 { grid-column: span 8; }
+    .col-12 { grid-column: span 12; }
+
+    @media (max-width: 900px) {
+      .col-2, .col-3, .col-4, .col-6, .col-8 { grid-column: span 12; }
+      header .wrap { flex-direction: column; align-items: flex-start; }
+    }
+
+    label {
+      display: block;
+      font-weight: 700;
+      font-size: 12px;
+      color: #374151;
+      margin: 0 0 5px 0;
+    }
+
+    input, select, textarea {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 10px 11px;
+      font-size: 14px;
+      background: #fff;
+      color: var(--ink);
+      outline: none;
+    }
+
+    textarea { min-height: 66px; resize: vertical; }
+
+    input:focus, select:focus, textarea:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+    }
+
+    button {
+      border: 0;
+      border-radius: 10px;
+      padding: 10px 13px;
+      cursor: pointer;
+      font-weight: 700;
+      background: var(--primary);
+      color: white;
+      transition: 0.15s ease-in-out;
+    }
+
+    button:hover { background: var(--primary-dark); }
+
+    button.secondary {
+      background: #e5e7eb;
+      color: #111827;
+    }
+
+    button.secondary:hover { background: #d1d5db; }
+
+    button.danger { background: var(--danger); }
+    button.danger:hover { background: #b91c1c; }
+
+    button.ok { background: var(--ok); }
+    button.ok:hover { background: #15803d; }
+
+    button.warn { background: var(--warn); }
+    button.warn:hover { background: #92400e; }
+
+    button:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+    }
+
+    .btn-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+      margin-top: 12px;
+    }
+
+    .tabs {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 18px;
+    }
+
+    .tabs button {
+      background: #e8eefc;
+      color: #1e3a8a;
+    }
+
+    .tabs button.active {
+      background: var(--primary);
+      color: #fff;
+    }
+
+    .hidden { display: none !important; }
+
+    .status {
+      padding: 10px 12px;
+      border-radius: 10px;
+      margin: 10px 0;
+      font-size: 14px;
+      background: #eff6ff;
+      color: #1e3a8a;
+      border: 1px solid #bfdbfe;
+    }
+
+    .status.error {
+      background: #fef2f2;
+      color: #991b1b;
+      border-color: #fecaca;
+    }
+
+    .status.ok {
+      background: #f0fdf4;
+      color: #166534;
+      border-color: #bbf7d0;
+    }
+
+    .muted {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .table-wrap {
+      overflow: auto;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 1060px;
+      background: #fff;
+    }
+
+    th, td {
+      border-bottom: 1px solid var(--line);
+      text-align: left;
+      padding: 10px;
+      font-size: 13px;
+      vertical-align: top;
+    }
+
+    th {
+      background: #f8fafc;
+      color: #374151;
+      position: sticky;
+      top: 0;
+      z-index: 1;
+    }
+
+    tr:hover td { background: #f9fbff; }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      border-radius: 999px;
+      padding: 4px 8px;
+      background: #eef2ff;
+      color: #3730a3;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .right { text-align: right; }
+
+    .mini-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .mini-actions button {
+      padding: 7px 9px;
+      font-size: 12px;
+    }
+
+    .split {
+      display: grid;
+      grid-template-columns: 1.1fr 0.9fr;
+      gap: 18px;
+    }
+
+    @media (max-width: 1000px) {
+      .split { grid-template-columns: 1fr; }
+    }
+
+    .selected-box {
+      border-left: 5px solid var(--primary);
+      background: #f8fbff;
+      padding: 12px;
+      border-radius: 12px;
+      margin-bottom: 12px;
+    }
+
+    .footer-note {
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 20px;
+      line-height: 1.5;
+    }
+  </style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <div>
+      <h1>PriceMonitor</h1>
+      <div class="sub">Cadastro de produtos, importação Excel, análise de preços e Firestore.</div>
+    </div>
+    <div id="userBox" class="muted"></div>
+  </div>
+</header>
+
+<main>
+  <section id="authArea" class="card auth-card">
+    <h2>Acesso ao sistema</h2>
+
+    <div class="grid">
+      <div class="col-12">
+        <label>Nome do usuário</label>
+        <input id="authName" placeholder="Ex.: Mauricio" />
+      </div>
+
+      <div class="col-12">
+        <label>E-mail</label>
+        <input id="authEmail" type="email" placeholder="usuario@empresa.com.br" />
+      </div>
+
+      <div class="col-12">
+        <label>Senha</label>
+        <input id="authPassword" type="password" placeholder="mínimo 6 caracteres" />
+      </div>
+    </div>
+
+    <div class="btn-row">
+      <button id="btnLogin">Entrar</button>
+      <button id="btnSignup" class="secondary">Criar usuário</button>
+    </div>
+
+    <div id="authStatus"></div>
+
+    <p class="footer-note">
+      O cadastro cria um usuário no Firebase Authentication e um registro em <b>users</b> no Firestore.
+      Para uso interno, depois de criar seus usuários, você pode desativar novos cadastros no Firebase Console.
+    </p>
+  </section>
+
+  <section id="appArea" class="hidden">
+    <div class="tabs">
+      <button class="active" data-tab="tabCadastro">Cadastro e importação</button>
+      <button data-tab="tabAnalise">Análise de produtos</button>
+      <button data-tab="tabPrecos">Preços sugeridos</button>
+    </div>
+
+    <section id="tabCadastro">
+      <div class="split">
+        <div class="card">
+          <h2>Cadastro manual de produto</h2>
+          <input id="productId" type="hidden" />
+
+          <div class="grid">
+            <div class="col-3">
+              <label>SKU / Código</label>
+              <input id="sku" placeholder="ABC123" />
+            </div>
+            <div class="col-3">
+              <label>EAN / GTIN</label>
+              <input id="ean" placeholder="7890000000000" />
+            </div>
+            <div class="col-6">
+              <label>Nome do produto</label>
+              <input id="name" placeholder="Descrição do produto" />
+            </div>
+
+            <div class="col-3">
+              <label>Segmento</label>
+              <input id="segment" placeholder="Ex.: Moda" />
+            </div>
+            <div class="col-3">
+              <label>Categoria</label>
+              <input id="category" placeholder="Ex.: Camisetas" />
+            </div>
+            <div class="col-3">
+              <label>Grupo</label>
+              <input id="group" placeholder="Ex.: Masculino" />
+            </div>
+            <div class="col-3">
+              <label>Subgrupo</label>
+              <input id="subGroup" placeholder="Ex.: Básica" />
+            </div>
+
+            <div class="col-4">
+              <label>Marca</label>
+              <input id="brand" placeholder="Marca" />
+            </div>
+            <div class="col-4">
+              <label>Preço custo</label>
+              <input id="costPrice" inputmode="decimal" placeholder="0,00" />
+            </div>
+            <div class="col-4">
+              <label>Preço venda atual</label>
+              <input id="salePrice" inputmode="decimal" placeholder="0,00" />
+            </div>
+          </div>
+
+          <div class="btn-row">
+            <button id="btnSaveProduct">Salvar produto</button>
+            <button id="btnClearProduct" class="secondary">Limpar</button>
+          </div>
+
+          <div id="productStatus"></div>
+        </div>
+
+        <div class="card">
+          <h2>Importar lista do Excel</h2>
+          <p class="muted">
+            Aceita colunas como: SKU, EAN, Produto, Segmento, Categoria, Grupo,
+            Subgrupo, Marca, Preço Custo e Preço Venda.
+          </p>
+
+          <label>Arquivo Excel ou CSV</label>
+          <input id="excelFile" type="file" accept=".xlsx,.xls,.csv" />
+
+          <div class="btn-row">
+            <button id="btnImportExcel">Importar produtos</button>
+          </div>
+
+          <div id="importStatus"></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="tabAnalise" class="hidden">
+      <div class="card">
+        <h2>Análise e consulta de produtos cadastrados</h2>
+
+        <div class="grid">
+          <div class="col-3">
+            <label>Pesquisa geral</label>
+            <input id="filterText" placeholder="SKU, EAN ou nome" />
+          </div>
+          <div class="col-2">
+            <label>Segmento</label>
+            <select id="filterSegment"></select>
+          </div>
+          <div class="col-2">
+            <label>Categoria</label>
+            <select id="filterCategory"></select>
+          </div>
+          <div class="col-2">
+            <label>Grupo</label>
+            <select id="filterGroup"></select>
+          </div>
+          <div class="col-2">
+            <label>Subgrupo</label>
+            <select id="filterSubGroup"></select>
+          </div>
+          <div class="col-1">
+            <label>Marca</label>
+            <select id="filterBrand"></select>
+          </div>
+        </div>
+
+        <div class="btn-row">
+          <button id="btnClearFilters" class="secondary">Limpar filtros</button>
+          <button id="btnExportExcel" class="ok">Exportar Excel</button>
+          <button id="btnExportPdf" class="warn">Exportar PDF</button>
+        </div>
+
+        <p class="muted" id="countProducts"></p>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>SKU</th>
+                <th>EAN</th>
+                <th>Produto</th>
+                <th>Segmento</th>
+                <th>Categoria</th>
+                <th>Grupo</th>
+                <th>Subgrupo</th>
+                <th>Marca</th>
+                <th>Preço venda</th>
+                <th>Fonte</th>
+                <th>Data cadastro/atualização</th>
+                <th>Ações</th>
+              </tr>
+            </thead>
+            <tbody id="productTable"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section id="tabPrecos" class="hidden">
+      <div class="split">
+        <div class="card">
+          <h2>Consulta de preços sugeridos</h2>
+
+          <div id="selectedProductBox" class="selected-box">
+            Nenhum produto selecionado. Vá até a aba <b>Análise de produtos</b> e clique em <b>Preços</b>.
+          </div>
+
+          <div class="grid">
+            <div class="col-4">
+              <label>Marketplace / e-commerce</label>
+              <select id="marketplace">
+                <option value="mercado_livre">Mercado Livre</option>
+                <option value="amazon">Amazon</option>
+                <option value="shopee">Shopee</option>
+                <option value="shein">SHEIN</option>
+                <option value="outro">Outro</option>
+              </select>
+            </div>
+            <div class="col-8">
+              <label>Termo de busca</label>
+              <input id="priceQuery" placeholder="Nome, marca, SKU ou EAN" />
+            </div>
+          </div>
+
+          <div class="btn-row">
+            <button id="btnSearchPrices">Consultar online</button>
+          </div>
+
+          <div id="priceStatus"></div>
+
+          <hr style="border:0;border-top:1px solid var(--line);margin:18px 0;">
+
+          <h3>Inserir preço manualmente</h3>
+          <div class="grid">
+            <div class="col-4">
+              <label>Título/fonte</label>
+              <input id="manualTitle" placeholder="Ex.: Loja oficial Amazon" />
+            </div>
+            <div class="col-2">
+              <label>Preço</label>
+              <input id="manualPrice" inputmode="decimal" placeholder="0,00" />
+            </div>
+            <div class="col-3">
+              <label>Vendedor</label>
+              <input id="manualSeller" placeholder="Opcional" />
+            </div>
+            <div class="col-3">
+              <label>URL</label>
+              <input id="manualUrl" placeholder="Opcional" />
+            </div>
+          </div>
+          <div class="btn-row">
+            <button id="btnAddManualSuggestion" class="secondary">Salvar sugestão manual</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <h2>Sugestões encontradas</h2>
+          <div class="table-wrap">
+            <table style="min-width:760px">
+              <thead>
+                <tr>
+                  <th>Fonte</th>
+                  <th>Título</th>
+                  <th>Preço</th>
+                  <th>Coleta</th>
+                  <th>Ação</th>
+                </tr>
+              </thead>
+              <tbody id="suggestionsTable"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <div class="btn-row">
+      <button id="btnLogout" class="danger">Sair</button>
+    </div>
+  </section>
+</main>
+
+<script type="module">
+  import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.4/firebase-app.js';
+  import {
+    getAuth,
+    onAuthStateChanged,
+    signInWithEmailAndPassword,
+    createUserWithEmailAndPassword,
+    updateProfile,
+    signOut
+  } from 'https://www.gstatic.com/firebasejs/10.12.4/firebase-auth.js';
+  import {
+    getFirestore,
+    collection,
+    doc,
+    addDoc,
+    setDoc,
+    updateDoc,
+    deleteDoc,
+    onSnapshot,
+    getDocs,
+    query,
+    where,
+    orderBy,
+    serverTimestamp
+  } from 'https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js';
+
+  const firebaseConfig = {
+    apiKey: 'AIzaSyCVDNqMsFYfxABWNNbS3UBqFoZU_jO1hv4',
+    authDomain: 'pricemonitor-6b71e.firebaseapp.com',
+    projectId: 'pricemonitor-6b71e',
+    storageBucket: 'pricemonitor-6b71e.firebasestorage.app',
+    messagingSenderId: '385862279215',
+    appId: '1:385862279215:web:d0eb6db8541a517a7e66da',
+    measurementId: 'G-F3MGZF45XV'
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const db = getFirestore(app);
+
+  let currentUser = null;
+  let unsubscribeProducts = null;
+  let products = [];
+  let filteredProducts = [];
+  let selectedProduct = null;
+  let currentSuggestions = [];
+
+  const $ = (id) => document.getElementById(id);
+
+  function status(el, message, type = '') {
+    el.innerHTML = message ? `<div class="status ${type}">${message}</div>` : '';
+  }
+
+  function money(value) {
+    const n = Number(value || 0);
+    return n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  }
+
+  function parseMoney(value) {
+    if (typeof value === 'number') return value;
+    const raw = String(value ?? '').trim();
+    if (!raw) return 0;
+
+    let cleaned = raw.replace(/[^\d,.-]/g, '');
+
+    if (cleaned.includes(',') && cleaned.includes('.')) {
+      cleaned = cleaned.replace(/\./g, '').replace(',', '.');
+    } else if (cleaned.includes(',')) {
+      cleaned = cleaned.replace(',', '.');
+    }
+
+    const n = Number(cleaned);
+    return Number.isFinite(n) ? n : 0;
+  }
+
+  function normalizeText(value) {
+    return String(value ?? '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .trim();
+  }
+
+  function normKey(value) {
+    return normalizeText(value).replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+  }
+
+  function dateText(value) {
+    if (!value) return '-';
+    const d = value.toDate ? value.toDate() : new Date(value);
+    if (Number.isNaN(d.getTime())) return '-';
+    return d.toLocaleString('pt-BR');
+  }
+
+  function uniqueValues(field) {
+    return [...new Set(products.map(p => p[field]).filter(Boolean))]
+      .sort((a, b) => String(a).localeCompare(String(b), 'pt-BR'));
+  }
+
+  function fillSelect(id, field) {
+    const select = $(id);
+    const old = select.value;
+    select.innerHTML = '<option value="">Todos</option>';
+    uniqueValues(field).forEach(value => {
+      const opt = document.createElement('option');
+      opt.value = value;
+      opt.textContent = value;
+      select.appendChild(opt);
+    });
+    select.value = [...select.options].some(o => o.value === old) ? old : '';
+  }
+
+  function refreshFilterOptions() {
+    fillSelect('filterSegment', 'segment');
+    fillSelect('filterCategory', 'category');
+    fillSelect('filterGroup', 'group');
+    fillSelect('filterSubGroup', 'subGroup');
+    fillSelect('filterBrand', 'brand');
+  }
+
+  function applyFilters() {
+    const text = normalizeText($('filterText').value);
+    const segment = $('filterSegment').value;
+    const category = $('filterCategory').value;
+    const group = $('filterGroup').value;
+    const subGroup = $('filterSubGroup').value;
+    const brand = $('filterBrand').value;
+
+    filteredProducts = products.filter(p => {
+      const textMatch = !text || normalizeText(`${p.sku} ${p.ean} ${p.name} ${p.brand}`).includes(text);
+      return textMatch
+        && (!segment || p.segment === segment)
+        && (!category || p.category === category)
+        && (!group || p.group === group)
+        && (!subGroup || p.subGroup === subGroup)
+        && (!brand || p.brand === brand);
+    });
+
+    renderProducts();
+  }
+
+  function renderProducts() {
+    $('countProducts').textContent = `${filteredProducts.length} produto(s) encontrado(s).`;
+    const tbody = $('productTable');
+    tbody.innerHTML = '';
+
+    if (!filteredProducts.length) {
+      tbody.innerHTML = '<tr><td colspan="12">Nenhum produto encontrado.</td></tr>';
+      return;
+    }
+
+    filteredProducts.forEach(product => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${escapeHtml(product.sku || '')}</td>
+        <td>${escapeHtml(product.ean || '')}</td>
+        <td><b>${escapeHtml(product.name || '')}</b></td>
+        <td>${escapeHtml(product.segment || '')}</td>
+        <td>${escapeHtml(product.category || '')}</td>
+        <td>${escapeHtml(product.group || '')}</td>
+        <td>${escapeHtml(product.subGroup || '')}</td>
+        <td>${escapeHtml(product.brand || '')}</td>
+        <td>${money(product.salePrice)}</td>
+        <td><span class="pill">${escapeHtml(product.source || 'manual')}</span></td>
+        <td>${dateText(product.updatedAt || product.createdAt)}</td>
+        <td>
+          <div class="mini-actions">
+            <button class="secondary" data-action="edit" data-id="${product.id}">Editar</button>
+            <button data-action="prices" data-id="${product.id}">Preços</button>
+            <button class="danger" data-action="delete" data-id="${product.id}">Excluir</button>
+          </div>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+
+    tbody.querySelectorAll('button[data-action]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const product = products.find(p => p.id === btn.dataset.id);
+        if (!product) return;
+
+        if (btn.dataset.action === 'edit') editProduct(product);
+        if (btn.dataset.action === 'prices') selectProductForPrices(product);
+        if (btn.dataset.action === 'delete') deleteProduct(product);
+      });
+    });
+  }
+
+  function escapeHtml(value) {
+    return String(value ?? '')
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;')
+      .replaceAll('"', '&quot;')
+      .replaceAll("'", '&#039;');
+  }
+
+  function clearProductForm() {
+    ['productId','sku','ean','name','segment','category','group','subGroup','brand','costPrice','salePrice']
+      .forEach(id => $(id).value = '');
+    status($('productStatus'), '');
+  }
+
+  function productFromForm() {
+    return {
+      sku: $('sku').value.trim(),
+      ean: $('ean').value.trim(),
+      name: $('name').value.trim(),
+      segment: $('segment').value.trim(),
+      category: $('category').value.trim(),
+      group: $('group').value.trim(),
+      subGroup: $('subGroup').value.trim(),
+      brand: $('brand').value.trim(),
+      costPrice: parseMoney($('costPrice').value),
+      salePrice: parseMoney($('salePrice').value),
+      source: 'manual',
+      updatedAt: serverTimestamp(),
+      updatedBy: currentUser.uid
+    };
+  }
+
+  async function saveProduct() {
+    try {
+      if (!currentUser) throw new Error('Faça login.');
+      const data = productFromForm();
+      if (!data.name) throw new Error('Informe o nome do produto.');
+
+      const id = $('productId').value;
+
+      if (id) {
+        await updateDoc(doc(db, 'products', id), data);
+        status($('productStatus'), 'Produto atualizado com sucesso.', 'ok');
+      } else {
+        await addDoc(collection(db, 'products'), {
+          ...data,
+          createdAt: serverTimestamp(),
+          createdBy: currentUser.uid,
+          acceptedSuggestionId: null
+        });
+        status($('productStatus'), 'Produto cadastrado com sucesso.', 'ok');
+      }
+
+      clearProductForm();
+    } catch (error) {
+      status($('productStatus'), error.message, 'error');
+    }
+  }
+
+  function editProduct(product) {
+    showTab('tabCadastro');
+    $('productId').value = product.id;
+    $('sku').value = product.sku || '';
+    $('ean').value = product.ean || '';
+    $('name').value = product.name || '';
+    $('segment').value = product.segment || '';
+    $('category').value = product.category || '';
+    $('group').value = product.group || '';
+    $('subGroup').value = product.subGroup || '';
+    $('brand').value = product.brand || '';
+    $('costPrice').value = product.costPrice || '';
+    $('salePrice').value = product.salePrice || '';
+    status($('productStatus'), `Editando produto: ${escapeHtml(product.name)}`);
+  }
+
+  async function deleteProduct(product) {
+    if (!confirm(`Excluir o produto "${product.name}"?`)) return;
+    await deleteDoc(doc(db, 'products', product.id));
+  }
+
+  function selectProductForPrices(product) {
+    selectedProduct = product;
+    $('priceQuery').value = [product.name, product.brand, product.ean || product.sku].filter(Boolean).join(' ');
+    renderSelectedProduct();
+    loadSuggestions(product.id);
+    showTab('tabPrecos');
+  }
+
+  function renderSelectedProduct() {
+    if (!selectedProduct) {
+      $('selectedProductBox').innerHTML = 'Nenhum produto selecionado.';
+      return;
+    }
+
+    $('selectedProductBox').innerHTML = `
+      <b>${escapeHtml(selectedProduct.name)}</b><br>
+      SKU: ${escapeHtml(selectedProduct.sku || '-')} |
+      EAN: ${escapeHtml(selectedProduct.ean || '-')} |
+      Marca: ${escapeHtml(selectedProduct.brand || '-')}<br>
+      Preço atual: <b>${money(selectedProduct.salePrice)}</b>
+    `;
+  }
+
+  async function importExcel() {
+    try {
+      if (!currentUser) throw new Error('Faça login.');
+      const file = $('excelFile').files[0];
+      if (!file) throw new Error('Selecione um arquivo Excel ou CSV.');
+
+      status($('importStatus'), 'Lendo arquivo...');
+
+      const buffer = await file.arrayBuffer();
+      const workbook = XLSX.read(buffer, { type: 'array' });
+      const sheet = workbook.Sheets[workbook.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+
+      if (!rows.length) throw new Error('A planilha está vazia.');
+
+      let imported = 0;
+
+      for (const row of rows) {
+        const product = productFromRow(row);
+        if (!product.name) continue;
+
+        await addDoc(collection(db, 'products'), {
+          ...product,
+          source: 'excel',
+          sourceFilename: file.name,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+          createdBy: currentUser.uid,
+          updatedBy: currentUser.uid,
+          acceptedSuggestionId: null
+        });
+
+        imported++;
+      }
+
+      await addDoc(collection(db, 'imports'), {
+        filename: file.name,
+        rowsTotal: rows.length,
+        rowsImported: imported,
+        status: 'done',
+        createdAt: serverTimestamp(),
+        createdBy: currentUser.uid
+      });
+
+      status($('importStatus'), `${imported} produto(s) importado(s) com sucesso.`, 'ok');
+      $('excelFile').value = '';
+    } catch (error) {
+      status($('importStatus'), error.message, 'error');
+    }
+  }
+
+  function productFromRow(row) {
+    const byKey = {};
+    for (const [key, value] of Object.entries(row)) {
+      byKey[normKey(key)] = value;
+    }
+
+    const pick = (...keys) => {
+      for (const key of keys) {
+        const value = byKey[normKey(key)];
+        if (value !== undefined && String(value).trim() !== '') return String(value).trim();
+      }
+      return '';
+    };
+
+    return {
+      sku: pick('sku', 'codigo', 'código', 'cod_produto', 'codigo_produto'),
+      ean: pick('ean', 'gtin', 'codigo_barras', 'código de barras', 'cod_barras'),
+      name: pick('nome', 'produto', 'descricao', 'descrição', 'nome_produto'),
+      segment: pick('segmento'),
+      category: pick('categoria'),
+      group: pick('grupo'),
+      subGroup: pick('subgrupo', 'sub_grupo', 'sub-grupo'),
+      brand: pick('marca'),
+      costPrice: parseMoney(pick('preco_custo', 'preço custo', 'custo')),
+      salePrice: parseMoney(pick('preco_venda', 'preço venda', 'venda', 'preço')),
+    };
+  }
+
+  async function searchPrices() {
+    try {
+      if (!selectedProduct) throw new Error('Selecione um produto na aba Análise.');
+      const marketplace = $('marketplace').value;
+      const qText = $('priceQuery').value.trim();
+
+      if (!qText) throw new Error('Informe um termo de busca.');
+
+      status($('priceStatus'), 'Consultando preços...');
+
+      if (marketplace !== 'mercado_livre') {
+        status($('priceStatus'), 'Para Amazon, Shopee e SHEIN, use o cadastro manual de sugestão ou integre APIs oficiais em uma etapa futura.', 'error');
+        return;
+      }
+
+      const url = new URL('https://api.mercadolibre.com/sites/MLB/search');
+      url.searchParams.set('q', qText);
+      url.searchParams.set('limit', '10');
+      url.searchParams.set('sort', 'price_asc');
+
+      const response = await fetch(url.toString(), { headers: { Accept: 'application/json' } });
+      if (!response.ok) throw new Error(`Mercado Livre retornou erro HTTP ${response.status}.`);
+
+      const data = await response.json();
+      const results = data.results || [];
+
+      for (const item of results) {
+        await addDoc(collection(db, 'price_suggestions'), {
+          productId: selectedProduct.id,
+          marketplace,
+          query: qText,
+          title: item.title || '',
+          seller: item.seller?.nickname || '',
+          price: Number(item.price || 0),
+          shipping: item.shipping?.free_shipping ? 0 : null,
+          currency: item.currency_id || 'BRL',
+          url: item.permalink || '',
+          score: 0,
+          collectedAt: serverTimestamp(),
+          createdBy: currentUser.uid
+        });
+      }
+
+      status($('priceStatus'), `${results.length} sugestão(ões) salvas a partir do Mercado Livre.`, 'ok');
+      await loadSuggestions(selectedProduct.id);
+    } catch (error) {
+      status($('priceStatus'), error.message, 'error');
+    }
+  }
+
+  async function addManualSuggestion() {
+    try {
+      if (!selectedProduct) throw new Error('Selecione um produto na aba Análise.');
+      const title = $('manualTitle').value.trim();
+      const price = parseMoney($('manualPrice').value);
+      const marketplace = $('marketplace').value;
+
+      if (!title) throw new Error('Informe o título/fonte da sugestão.');
+      if (!price) throw new Error('Informe o preço.');
+
+      await addDoc(collection(db, 'price_suggestions'), {
+        productId: selectedProduct.id,
+        marketplace,
+        query: $('priceQuery').value.trim(),
+        title,
+        seller: $('manualSeller').value.trim(),
+        price,
+        shipping: null,
+        currency: 'BRL',
+        url: $('manualUrl').value.trim(),
+        score: 1,
+        collectedAt: serverTimestamp(),
+        createdBy: currentUser.uid
+      });
+
+      ['manualTitle', 'manualPrice', 'manualSeller', 'manualUrl'].forEach(id => $(id).value = '');
+      status($('priceStatus'), 'Sugestão manual salva com sucesso.', 'ok');
+      await loadSuggestions(selectedProduct.id);
+    } catch (error) {
+      status($('priceStatus'), error.message, 'error');
+    }
+  }
+
+  async function loadSuggestions(productId) {
+    currentSuggestions = [];
+
+    try {
+      const q = query(
+        collection(db, 'price_suggestions'),
+        where('productId', '==', productId)
+      );
+
+      const snap = await getDocs(q);
+      currentSuggestions = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+        .sort((a, b) => (Number(a.price || 0) - Number(b.price || 0)));
+
+      renderSuggestions();
+    } catch (error) {
+      $('suggestionsTable').innerHTML = `<tr><td colspan="5">${escapeHtml(error.message)}</td></tr>`;
+    }
+  }
+
+  function renderSuggestions() {
+    const tbody = $('suggestionsTable');
+    tbody.innerHTML = '';
+
+    if (!currentSuggestions.length) {
+      tbody.innerHTML = '<tr><td colspan="5">Nenhuma sugestão cadastrada para este produto.</td></tr>';
+      return;
+    }
+
+    currentSuggestions.forEach(s => {
+      const tr = document.createElement('tr');
+      const link = s.url ? `<br><a href="${escapeHtml(s.url)}" target="_blank" rel="noopener">abrir anúncio</a>` : '';
+      tr.innerHTML = `
+        <td><span class="pill">${escapeHtml(labelMarketplace(s.marketplace))}</span></td>
+        <td><b>${escapeHtml(s.title || '')}</b><br><span class="muted">${escapeHtml(s.seller || '')}</span>${link}</td>
+        <td><b>${money(s.price)}</b></td>
+        <td>${dateText(s.collectedAt)}</td>
+        <td><button class="ok" data-id="${s.id}">Aceitar preço</button></td>
+      `;
+      tbody.appendChild(tr);
+    });
+
+    tbody.querySelectorAll('button[data-id]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const suggestion = currentSuggestions.find(s => s.id === btn.dataset.id);
+        acceptPrice(suggestion);
+      });
+    });
+  }
+
+  function labelMarketplace(value) {
+    return {
+      mercado_livre: 'Mercado Livre',
+      amazon: 'Amazon',
+      shopee: 'Shopee',
+      shein: 'SHEIN',
+      outro: 'Outro'
+    }[value] || value || '-';
+  }
+
+  async function acceptPrice(suggestion) {
+    if (!selectedProduct || !suggestion) return;
+    if (!confirm(`Atualizar preço do produto para ${money(suggestion.price)}?`)) return;
+
+    await updateDoc(doc(db, 'products', selectedProduct.id), {
+      salePrice: Number(suggestion.price || 0),
+      acceptedSuggestionId: suggestion.id,
+      acceptedMarketplace: suggestion.marketplace,
+      updatedAt: serverTimestamp(),
+      updatedBy: currentUser.uid
+    });
+
+    selectedProduct = {
+      ...selectedProduct,
+      salePrice: Number(suggestion.price || 0),
+      acceptedSuggestionId: suggestion.id
+    };
+
+    renderSelectedProduct();
+    status($('priceStatus'), 'Preço aceito e produto atualizado.', 'ok');
+  }
+
+  function exportExcel() {
+    const rows = filteredProducts.map(p => ({
+      SKU: p.sku || '',
+      EAN: p.ean || '',
+      Produto: p.name || '',
+      Segmento: p.segment || '',
+      Categoria: p.category || '',
+      Grupo: p.group || '',
+      Subgrupo: p.subGroup || '',
+      Marca: p.brand || '',
+      'Preço custo': p.costPrice || 0,
+      'Preço venda': p.salePrice || 0,
+      Fonte: p.source || '',
+      'Data cadastro/atualização': dateText(p.updatedAt || p.createdAt)
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Produtos');
+    XLSX.writeFile(wb, 'produtos-pricemonitor.xlsx');
+  }
+
+  function exportPdf() {
+    const { jsPDF } = window.jspdf;
+    const docPdf = new jsPDF({ orientation: 'landscape' });
+    docPdf.text('PriceMonitor - Produtos', 14, 14);
+
+    docPdf.autoTable({
+      startY: 20,
+      head: [[
+        'SKU', 'EAN', 'Produto', 'Segmento', 'Categoria', 'Grupo',
+        'Subgrupo', 'Marca', 'Preço venda', 'Fonte', 'Atualização'
+      ]],
+      body: filteredProducts.map(p => [
+        p.sku || '',
+        p.ean || '',
+        p.name || '',
+        p.segment || '',
+        p.category || '',
+        p.group || '',
+        p.subGroup || '',
+        p.brand || '',
+        money(p.salePrice),
+        p.source || '',
+        dateText(p.updatedAt || p.createdAt)
+      ]),
+      styles: { fontSize: 7 },
+      headStyles: { fillColor: [37, 99, 235] }
+    });
+
+    docPdf.save('produtos-pricemonitor.pdf');
+  }
+
+  function showTab(tabId) {
+    ['tabCadastro','tabAnalise','tabPrecos'].forEach(id => $(id).classList.add('hidden'));
+    $(tabId).classList.remove('hidden');
+
+    document.querySelectorAll('.tabs button').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.tab === tabId);
+    });
+  }
+
+  function listenProducts() {
+    if (unsubscribeProducts) unsubscribeProducts();
+
+    unsubscribeProducts = onSnapshot(collection(db, 'products'), (snap) => {
+      products = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+        .sort((a, b) => {
+          const da = (a.updatedAt?.toDate?.() || a.createdAt?.toDate?.() || new Date(0)).getTime();
+          const dbt = (b.updatedAt?.toDate?.() || b.createdAt?.toDate?.() || new Date(0)).getTime();
+          return dbt - da;
+        });
+
+      refreshFilterOptions();
+      applyFilters();
+
+      if (selectedProduct) {
+        const updated = products.find(p => p.id === selectedProduct.id);
+        if (updated) {
+          selectedProduct = updated;
+          renderSelectedProduct();
+        }
+      }
+    }, (error) => {
+      alert('Erro ao ler produtos: ' + error.message);
+    });
+  }
+
+  async function doLogin() {
+    try {
+      status($('authStatus'), '');
+      await signInWithEmailAndPassword(auth, $('authEmail').value.trim(), $('authPassword').value);
+    } catch (error) {
+      status($('authStatus'), error.message, 'error');
+    }
+  }
+
+  async function doSignup() {
+    try {
+      status($('authStatus'), '');
+      const email = $('authEmail').value.trim();
+      const password = $('authPassword').value;
+      const name = $('authName').value.trim() || email;
+
+      const cred = await createUserWithEmailAndPassword(auth, email, password);
+      await updateProfile(cred.user, { displayName: name });
+
+      await setDoc(doc(db, 'users', cred.user.uid), {
+        email,
+        name,
+        role: 'admin',
+        active: true,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      });
+    } catch (error) {
+      status($('authStatus'), error.message, 'error');
+    }
+  }
+
+  onAuthStateChanged(auth, (user) => {
+    currentUser = user;
+
+    if (user) {
+      $('authArea').classList.add('hidden');
+      $('appArea').classList.remove('hidden');
+      $('userBox').innerHTML = `<span style="color:white">Logado como <b>${escapeHtml(user.displayName || user.email)}</b></span>`;
+      listenProducts();
+    } else {
+      $('authArea').classList.remove('hidden');
+      $('appArea').classList.add('hidden');
+      $('userBox').textContent = '';
+      products = [];
+      filteredProducts = [];
+      selectedProduct = null;
+      currentSuggestions = [];
+      if (unsubscribeProducts) unsubscribeProducts();
+    }
+  });
+
+  $('btnLogin').addEventListener('click', doLogin);
+  $('btnSignup').addEventListener('click', doSignup);
+  $('btnLogout').addEventListener('click', () => signOut(auth));
+
+  $('btnSaveProduct').addEventListener('click', saveProduct);
+  $('btnClearProduct').addEventListener('click', clearProductForm);
+  $('btnImportExcel').addEventListener('click', importExcel);
+
+  $('btnSearchPrices').addEventListener('click', searchPrices);
+  $('btnAddManualSuggestion').addEventListener('click', addManualSuggestion);
+
+  $('btnExportExcel').addEventListener('click', exportExcel);
+  $('btnExportPdf').addEventListener('click', exportPdf);
+
+  $('btnClearFilters').addEventListener('click', () => {
+    ['filterText','filterSegment','filterCategory','filterGroup','filterSubGroup','filterBrand'].forEach(id => $(id).value = '');
+    applyFilters();
+  });
+
+  ['filterText','filterSegment','filterCategory','filterGroup','filterSubGroup','filterBrand'].forEach(id => {
+    $(id).addEventListener('input', applyFilters);
+    $(id).addEventListener('change', applyFilters);
+  });
+
+  document.querySelectorAll('.tabs button').forEach(btn => {
+    btn.addEventListener('click', () => showTab(btn.dataset.tab));
+  });
+</script>
+</body>
+</html>

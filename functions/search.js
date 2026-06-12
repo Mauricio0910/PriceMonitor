@@ -1,5 +1,5 @@
 export async function onRequest(context) {
-  const { request } = context;
+  const { request, env } = context;
 
   const corsHeaders = {
     "Access-Control-Allow-Origin": "*",
@@ -31,6 +31,12 @@ export async function onRequest(context) {
     const warnings = [];
 
     async function searchMercadoLivre() {
+      if (!env.ML_ACCESS_TOKEN) {
+        throw new Error(
+          "ML_ACCESS_TOKEN não encontrado no Cloudflare. Cadastre em Settings > Variables and Secrets."
+        );
+      }
+
       const endpoint =
         "https://api.mercadolibre.com/sites/MLB/search?q=" +
         encodeURIComponent(query) +
@@ -41,7 +47,8 @@ export async function onRequest(context) {
         method: "GET",
         headers: {
           "Accept": "application/json",
-          "Accept-Language": "pt-BR,pt;q=0.9,en;q=0.8"
+          "Accept-Language": "pt-BR,pt;q=0.9,en;q=0.8",
+          "Authorization": "Bearer " + env.ML_ACCESS_TOKEN
         }
       });
 
@@ -57,9 +64,10 @@ export async function onRequest(context) {
       }
 
       let data;
+
       try {
         data = JSON.parse(responseText);
-      } catch (e) {
+      } catch (error) {
         throw new Error(
           "Mercado Livre retornou resposta inválida: " +
             responseText.slice(0, 300)
@@ -75,7 +83,7 @@ export async function onRequest(context) {
           url: item.permalink || "",
           seller: item.seller?.nickname || "",
           thumbnail: item.thumbnail || "",
-          source: "api_publica_mercado_livre"
+          source: "api_mercado_livre_autenticada"
         }))
         .filter((item) => item.price > 0);
     }
@@ -123,14 +131,20 @@ export async function onRequest(context) {
         warnings,
         priceAnalysis
       },
-      { status: 200, headers: corsHeaders }
+      {
+        status: 200,
+        headers: corsHeaders
+      }
     );
   } catch (error) {
     return Response.json(
       {
         error: error.message || "Erro inesperado ao consultar preços."
       },
-      { status: 500, headers: corsHeaders }
+      {
+        status: 500,
+        headers: corsHeaders
+      }
     );
   }
 }

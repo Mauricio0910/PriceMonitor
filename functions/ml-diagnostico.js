@@ -15,25 +15,23 @@ export async function onRequest(context) {
     });
   }
 
-  // Proteção simples para não deixar o diagnóstico público
-  if (!env.DIAG_KEY || url.searchParams.get("key") !== env.DIAG_KEY) {
-    return Response.json(
-      { error: "Acesso negado ao diagnóstico." },
-      { status: 401, headers: corsHeaders }
-    );
-  }
+  const envCheck = {
+    ML_CLIENT_ID: Boolean(env.ML_CLIENT_ID),
+    ML_ACCESS_TOKEN: Boolean(env.ML_ACCESS_TOKEN),
+    ML_REFRESH_TOKEN: Boolean(env.ML_REFRESH_TOKEN),
+    ML_CLIENT_SECRET: Boolean(env.ML_CLIENT_SECRET)
+  };
 
-  if (!env.ML_ACCESS_TOKEN) {
+  if (!env.ML_ACCESS_TOKEN || !env.ML_CLIENT_ID) {
     return Response.json(
-      { error: "ML_ACCESS_TOKEN não encontrado." },
-      { status: 500, headers: corsHeaders }
-    );
-  }
-
-  if (!env.ML_CLIENT_ID) {
-    return Response.json(
-      { error: "ML_CLIENT_ID não encontrado." },
-      { status: 500, headers: corsHeaders }
+      {
+        error: "Variáveis obrigatórias não encontradas no Cloudflare.",
+        envCheck
+      },
+      {
+        status: 500,
+        headers: corsHeaders
+      }
     );
   }
 
@@ -78,7 +76,7 @@ export async function onRequest(context) {
 
   const results = [];
 
-  // 1. Dados da aplicação
+  // 1. Testa dados da aplicação
   results.push(
     await callMercadoLivre(
       "Dados da aplicação",
@@ -87,7 +85,7 @@ export async function onRequest(context) {
     )
   );
 
-  // 2. Usuário autenticado
+  // 2. Testa usuário autenticado
   const meResult = await callMercadoLivre(
     "Usuário autenticado",
     "https://api.mercadolibre.com/users/me"
@@ -109,7 +107,7 @@ export async function onRequest(context) {
     );
   }
 
-  // 4. Se informar seller_id na URL, testa busca pública por seller
+  // 4. Se informar seller_id na URL, testa seller público
   const sellerId = url.searchParams.get("seller_id");
 
   if (sellerId) {
@@ -126,6 +124,8 @@ export async function onRequest(context) {
   return Response.json(
     {
       generatedAt: new Date().toISOString(),
+      aviso: "Diagnóstico temporário. Apague este arquivo depois do teste.",
+      envCheck,
       appId: env.ML_CLIENT_ID,
       results
     },

@@ -22,8 +22,13 @@ export async function onRequest(context) {
 
     if (!query.trim()) {
       return Response.json(
-        { error: "Informe o parâmetro q com o nome do produto." },
-        { status: 400, headers: corsHeaders }
+        {
+          error: "Informe o parâmetro q com o nome do produto."
+        },
+        {
+          status: 400,
+          headers: corsHeaders
+        }
       );
     }
 
